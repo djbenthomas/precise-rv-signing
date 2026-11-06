@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Precise RV — Agent Signature</title>
+<meta name="robots" content="noindex">
+<style>
+  :root{
+    --ink:#12100e; --paper:#f6f1e7; --amber:#c8862a; --amber-dk:#9c651b;
+    --teal:#1f4b4a; --line:#d9cfbc; --muted:#6b6257; --good:#2f7d4f; --bad:#a83232;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#efe8db;color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .wrap{max-width:900px;margin:0 auto;padding:0 18px 80px}
+  header{background:linear-gradient(160deg,#191512,#2a2019 60%,#3a2a1c);color:#f6f1e7;
+    padding:34px 18px 28px;border-bottom:3px solid var(--amber)}
+  header .inner{max-width:900px;margin:0 auto}
+  .kicker{letter-spacing:.22em;font-size:11px;text-transform:uppercase;color:#d8b477;margin:0 0 10px}
+  h1{margin:0;font-size:30px;line-height:1.15;letter-spacing:-.01em}
+  header p{margin:10px 0 0;color:#cfc4b4;font-size:14px;max-width:60ch}
+  .pill{display:inline-block;margin-top:14px;background:#3b2c1f;border:1px solid #6b5233;
+    color:#f0d9a0;border-radius:999px;padding:5px 13px;font-size:12px;letter-spacing:.06em}
+  h2{font-size:19px;margin:34px 0 6px;letter-spacing:-.01em}
+  h2 .num{display:inline-flex;width:26px;height:26px;border-radius:50%;background:var(--teal);
+    color:#fff;font-size:13px;align-items:center;justify-content:center;margin-right:9px;vertical-align:2px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px;
+    box-shadow:0 1px 0 #fff inset, 0 6px 18px rgba(35,26,16,.06)}
+  .grid{display:grid;gap:13px;grid-template-columns:1fr 1fr}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  label{display:block;font-size:12.5px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 5px;font-weight:600}
+  input[type=text],input[type=email],input[type=tel],input[type=date],textarea,select{
+    width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:#fffdf8;
+    font:inherit;color:var(--ink)}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--amber);outline-offset:1px}
+  textarea{min-height:64px;resize:vertical}
+  .readonly{background:#ece4d5;color:#4a4238}
+  .terms{font-size:14px;color:#3d352c}
+  .terms h3{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);
+    margin:18px 0 6px;border-bottom:1px solid var(--line);padding-bottom:5px}
+  .terms p{margin:0 0 9px}
+  .check{display:flex;gap:11px;align-items:flex-start;padding:11px 0;border-bottom:1px dashed var(--line)}
+  .check:last-child{border-bottom:0}
+  .check input{margin-top:3px;width:19px;height:19px;flex:0 0 auto;accent-color:var(--teal)}
+  .check span{font-size:14.5px}
+  .sigwrap{border:2px dashed #b9a886;border-radius:12px;background:#fff;position:relative;overflow:hidden}
+  canvas#sig{display:block;width:100%;height:190px;touch-action:none;cursor:crosshair}
+  .sighint{position:absolute;left:14px;top:12px;color:#bdb2a0;font-size:13px;pointer-events:none}
+  .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+  button{font:inherit;font-weight:650;border-radius:10px;padding:12px 18px;cursor:pointer;border:1px solid transparent}
+  .primary{background:var(--amber);color:#241a0c;border-color:#a86f1e}
+  .primary:hover{background:#d59745}
+  .ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+  .ghost:hover{background:#f3ecdf}
+  .primary[disabled]{opacity:.45;cursor:not-allowed}
+  .msg{font-size:13.5px;margin-top:10px}
+  .msg.ok{color:var(--good)} .msg.err{color:var(--bad)}
+  .sticky{position:sticky;bottom:0;background:linear-gradient(#efe8db00,#efe8db 40%);
+    padding:14px 0 8px;margin-top:26px}
+  .sticky .bar{background:#fffdf7;border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+    box-shadow:0 8px 24px rgba(35,26,16,.10)}
+  .bar small{color:var(--muted);display:block}
+  .note{font-size:13px;color:var(--muted);margin-top:10px}
+  .req{color:var(--bad)}
+  .done{display:none;background:#eef6f0;border:1px solid #b8d9c3;border-radius:14px;padding:20px;margin-top:22px}
+  .done h3{margin:0 0 8px;color:var(--good)}
+  a{color:var(--amber-dk)}
+  .badge{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:#8a7c69}
+  ol.steps{font-size:14px;color:#3d352c;padding-left:20px}
+  ol.steps li{margin:5px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="inner">
+    <p class="kicker">Precise Enterprise Rentals LLC</p>
+    <h1>RV Management Agreement — Agent Signature</h1>
+    <p>2019 Forest River Wildwood &middot; VIN 4X4TWDC24KC045762 &middot; Owner: Ben Thomas Wieduwilt &middot; Effective: November 6, 2026</p>
+    <span class="pill">Complete details → review terms → sign</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <h2><span class="num">1</span>Signer</h2>
+  <p class="sub">The person signing on behalf of the Agent entity.</p>
+  <div class="card grid">
+    <div>
+      <label>Full name <span class="req">*</span></label>
+      <input type="text" id="agentName" value="Miguel Jimenez" autocomplete="name">
+    </div>
+    <div>
+      <label>Title / authority <span class="req">*</span></label>
+      <input type="text" id="agentTitle" placeholder="e.g. Owner / Managing Member">
+    </div>
+    <div>
+      <label>Agent legal entity</label>
+      <input type="text" id="agentEntity" value="Precise Enterprise Rentals LLC" readonly class="readonly">
+    </div>
+    <div>
+      <label>Email <span class="req">*</span></label>
+      <input type="email" id="agentEmail" placeholder="you@preciserv.com">
+    </div>
+    <div>
+      <label>Phone</label>
+      <input type="tel" id="agentPhone" placeholder="(555) 555-5555">
+    </div>
+    <div>
+      <label>Date</label>
+      <input type="date" id="signDate">
+    </div>
+  </div>
+
+  <h2><span class="num">2</span>Trailer &amp; storage</h2>
+  <p class="sub">Pre-filled from the packet. Correct anything that is wrong.</p>
+  <div class="card grid">
+    <div>
+      <label>Year / make / model</label>
+      <input type="text" id="unit" value="2019 Forest River Wildwood">
+    </div>
+    <div>
+      <label>VIN</label>
+      <input type="text" id="vin" value="4X4TWDC24KC045762">
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Actual storage address (street, city, state, zip + space/unit) <span class="req">*</span></label>
+      <input type="text" id="storage" value="43227 50th Street West, Lancaster, CA 93536">
+    </div>
+    <div>
+      <label>Agreement effective date</label>
+      <input type="date" id="effDate" value="2026-11-06">
+    </div>
+    <div>
+      <label>Storage contact / access hours</label>
+      <input type="text" id="storageContact" placeholder="Facility name, gate code contact">
+    </div>
+  </div>
+
+  <h2><span class="num">3</span>Insurance confirmation</h2>
+  <p class="sub">Required before any rental or transport. Fill every field — an incomplete insurance section is the one thing that stops this signing.</p>
+  <div class="card grid">
+    <div>
+      <label>Carrier / policy number <span class="req">*</span></label>
+      <input type="text" id="carrier" placeholder="Carrier name &amp; policy #">
+    </div>
+    <div>
+      <label>Liability limit <span class="req">*</span></label>
+      <input type="text" id="liability" placeholder="e.g. $1,000,000 CSL">
+    </div>
+    <div>
+      <label>Physical-damage limit / valuation basis <span class="req">*</span></label>
+      <input type="text" id="physical" placeholder="e.g. ACV $28,000">
+    </div>
+    <div>
+      <label>Deductible(s) <span class="req">*</span></label>
+      <input type="text" id="deductible" placeholder="e.g. $1,000 collision / $500 comp">
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Who pays each deductible, and in which circumstances <span class="req">*</span></label>
+      <textarea id="deductWho" placeholder="Be specific: renter pays first $___, Agent covers ___, Owner responsibility is ___"></textarea>
+    </div>
+    <div style="grid-column:1/-1">
+      <label>Responsibility for denied / uninsured / uncollected renter damage <span class="req">*</span></label>
+      <textarea id="denied" placeholder="Who absorbs the loss, and up to what amount"></textarea>
+    </div>
+    <div>
+      <label>Coverage effective dates</label>
+      <input type="text" id="covDates" placeholder="MM/DD/YYYY – MM/DD/YYYY">
+    </div>
+    <div>
+      <label>Owner named additional insured?</label>
+      <select id="addlInsured">
+        <option value="">Select…</option>
+        <option>Yes — certificate attached</option>
+        <option>Yes — being issued</option>
+        <option>No</option>
+      </select>
+    </div>
+  </div>
+
+  <h2><span class="num">4</span>Terms being signed</h2>
+  <p class="sub">Summary of the addendum that controls over conflicting terms in the 12-page agreement. Full packet: <a href="assets/Precise_RV_Packet.pdf" target="_blank" rel="noopener">Precise_RV_Packet.pdf</a></p>
+  <div class="card terms">
+    <h3>Revenue &amp; payment</h3>
+    <p>Owner and Agent each receive <strong>50% of gross nightly rental revenue actually collected</strong>, before platform, processing, referral or finder fees. Those fees are paid from Agent's share unless Owner approves a specific charge in writing. Standard rate <strong>$175/night, two-night minimum</strong>; seasonal and promotional pricing discretion remains. At standard rate, two nights produce $350 revenue and $175 for Owner before approved Owner expenses.</p>
+    <p>Under the selected <strong>Basic Plan</strong>, Agent retains 100% of delivery, setup, prep, cleaning, bedding, kitchen-kit and other add-on fees; extra-mileage, towing and generator fees remain allocated to Agent. Agent provides an itemized monthly statement and pays amounts due by the <strong>5th of the following month</strong>.</p>
+
+    <h3>Storage &amp; commercial insurance</h3>
+    <p>Agent pays all management-related storage costs and commercial insurance premiums for this trailer throughout Agent's custody, <strong>including months without rentals</strong>. These costs are not charged to Owner, accrued as Owner debt, or deducted from Owner's earnings. Owner remains responsible for registration and any separate personal-use insurance; this provision does not authorize cancellation of personal coverage.</p>
+
+    <h3>Repairs</h3>
+    <p>Basic Plan remains selected. <strong>Owner's prior written approval is required for any Owner-paid repair exceeding $250</strong> total, including parts and labor. Exception: an immediate safety emergency, with prompt notice and receipts. Covered Basic Plan work remains Agent's expense; authorized Owner-paid work bills at the stated <strong>$100/hour labor rate</strong>.</p>
+
+    <h3>Use, term &amp; return</h3>
+    <p>Owner may reserve available dates with <strong>five calendar days' written notice</strong>; Agent provides calendar access. Storage/management base stays in California; Agent gives written notice before any change of storage location. <strong>The winter relocation provision is deleted.</strong></p>
+    <p>Term is <strong>month to month</strong>. Either party may terminate on <strong>30 calendar days' written notice</strong>. This replaces the one-year term, inconsistent month entries and automatic-renewal provisions. Agent makes the trailer, keys and documented Owner equipment available for pickup in California no later than the end of that notice period, and is responsible for bookings extending beyond that date. <strong>No $300 termination or nonrenewal fee applies.</strong></p>
+
+    <h3>Insurance before operations</h3>
+    <p>Before the first rental or Agent transport, Agent provides the policy/coverage documents and written confirmation identifying this trailer, Owner's insured status, coverage during storage, transport, setup and customer use, liability and physical-damage limits, and exclusions.</p>
+
+    <h3>Identification</h3>
+    <p>References to "Hightened Path RV" in the maintenance addendum mean the Agent identified above. California governing law remains selected.</p>
+  </div>
+
+  <h2><span class="num">5</span>Acknowledgments</h2>
+  <p class="sub">Every box must be checked before signing.</p>
+  <div class="card" id="acks">
+    <label class="check"><input type="checkbox" data-ack><span>I am authorized to sign for <strong>Precise Enterprise Rentals LLC</strong>.</span></label>
+    <label class="check"><input type="checkbox" data-ack><span>The trailer identification (year/make/model/VIN) and storage address above are accurate.</span></label>
+    <label class="check"><input type="checkbox" data-ack><span>The insurance details above are complete and accurate, and I will deliver the current trailer-specific certificate naming the Owner as additional insured <strong>before the first rental or transport</strong>.</span></label>
+    <label class="check"><input type="checkbox" data-ack><span>I understand the addendum <strong>controls over conflicting terms</strong> in the attached 12-page agreement, including storage and commercial-insurance billing.</span></label>
+    <label class="check"><input type="checkbox" data-ack><span>Agent pays storage and commercial insurance premiums throughout custody, including months without rentals.</span></label>
+    <label class="check"><input type="checkbox" data-ack><span>Owner-paid repairs over <strong>$250</strong> require the Owner's prior written approval, except immediate safety emergencies.</span></label>
+    <label class="check"><input type="checkbox" data-ack><span>Term is <strong>month to month</strong> with <strong>30 days'</strong> written notice either way, and no $300 termination or nonrenewal fee.</span></label>
+    <label class="check"><input type="checkbox" data-ack><span>I will give written notice before any change of the trailer's storage location.</span></label>
+    <label class="check"><input type="checkbox" data-ack><span>I consent to sign electronically and agree my signature below is legally binding.</span></label>
+  </div>
+
+  <h2><span class="num">6</span>Signature</h2>
+  <p class="sub">Draw with a finger, stylus or mouse — or type your name and I'll render it.</p>
+  <div class="card">
+    <div class="sigwrap">
+      <canvas id="sig" width="1600" height="380"></canvas>
+      <div class="sighint" id="sighint">Sign here</div>
+    </div>
+    <div class="row">
+      <button class="ghost" id="clear">Clear</button>
+      <input type="text" id="typedSig" placeholder="…or type your full legal name" style="flex:1;min-width:220px">
+      <button class="ghost" id="useTyped">Use typed</button>
+    </div>
+    <div class="msg" id="sigMsg"></div>
+  </div>
+
+  <div class="sticky">
+    <div class="bar">
+      <div>
+        <strong id="statusTitle">Not ready yet</strong>
+        <small id="statusSub">Complete the required fields, check every box, then sign.</small>
+      </div>
+      <button class="primary" id="submit" disabled>Sign &amp; generate PDF</button>
+    </div>
+  </div>
+
+  <div class="done" id="done">
+    <h3>Signed — your copy is ready</h3>
+    <p id="doneText"></p>
+    <ol class="steps">
+      <li><a id="dl" href="#" download="Precise-RV-Agent-Signed.pdf">Download the signed PDF</a> (also auto-downloaded).</li>
+      <li><a id="mailto" href="#">Email it to the Owner</a> — this opens your mail app; <strong>attach the downloaded PDF</strong> before sending.</li>
+    </ol>
+    <p class="note" id="audit"></p>
+  </div>
+
+  <p class="note">This page records a simple electronic signature with a timestamp and content hash. It is not a notarized or certificate-based signature. Keep the generated PDF; it is your evidence of what was signed.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const required = ['agentName','agentTitle','agentEmail','storage','carrier','liability','physical','deductible','deductWho','denied'];
+  const canvas = $('#sig'), ctx = canvas.getContext('2d');
+  let drawn = false, typedMode = false, sigDataUrl = null;
+
+  // hi-dpi friendly setup
+  function initCanvas(){
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#141210';
+  }
+  initCanvas();
+
+  let drawing=false, last=null;
+  function pos(e){
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x:(t.clientX-r.left)*(canvas.width/r.width), y:(t.clientY-r.top)*(canvas.height/r.height) };
+  }
+  function start(e){ e.preventDefault(); drawing=true; last=pos(e); drawn=true; $('#sighint').style.display='none'; typedMode=false; }
+  function move(e){ if(!drawing) return; e.preventDefault();
+    const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; refresh(); }
+  function end(){ drawing=false; }
+  canvas.addEventListener('mousedown',start); canvas.addEventListener('mousemove',move);
+  window.addEventListener('mouseup',end);
+  canvas.addEventListener('touchstart',start,{passive:false});
+  canvas.addEventListener('touchmove',move,{passive:false});
+  canvas.addEventListener('touchend',end);
+
+  $('#clear').onclick = () => { initCanvas(); drawn=false; typedMode=false; sigDataUrl=null; $('#sighint').style.display='block'; refresh(); };
+  $('#useTyped').onclick = () => {
+    const name = ($('#typedSig').value || $('#agentName').value || '').trim();
+    if(!name){ $('#sigMsg').textContent='Type a name first.'; $('#sigMsg').className='msg err'; return; }
+    initCanvas();
+    const script = (n) => {           // simple cursive-ish rendering
+      ctx.save(); ctx.translate(60, 250);
+      ctx.fillStyle='#141210';
+      ctx.font = 'italic 110px "Snell Roundhand","Brush Script MT","Segoe Script",cursive';
+      ctx.fillText(n, 0, 0);
+      ctx.beginPath(); ctx.moveTo(0,40); ctx.bezierCurveTo(300,90, 700,10, 1100,50); ctx.lineWidth=2; ctx.stroke();
+      ctx.restore();
+    };
+    script(name);
+    drawn=true; typedMode=true; $('#sighint').style.display='none';
+    $('#sigMsg').textContent='Typed signature applied — you can still draw over it.'; $('#sigMsg').className='msg ok';
+    refresh();
+  };
+
+  // readiness
+  function allFilled(){ return required.every(id => ($('#'+id).value||'').trim().length>0); }
+  function allAcked(){ return [...document.querySelectorAll('[data-ack]')].every(c=>c.checked); }
+  function refresh(){
+    const ok = allFilled() && allAcked() && drawn;
+    $('#submit').disabled = !ok;
+    if(ok){ $('#statusTitle').textContent='Ready to sign'; $('#statusSub').textContent='Everything is complete. Generate your signed copy.'; }
+    else {
+      $('#statusTitle').textContent='Not ready yet';
+      const missing=[];
+      if(!allFilled()) missing.push('required fields');
+      if(!allAcked()) missing.push('acknowledgments');
+      if(!drawn) missing.push('signature');
+      $('#statusSub').textContent='Still need: '+missing.join(' · ');
+    }
+  }
+  document.querySelectorAll('input,textarea,select').forEach(el=>{
+    el.addEventListener('input',refresh); el.addEventListener('change',refresh);
+  });
+
+  function collect(){
+    const d = {};
+    document.querySelectorAll('input[id],textarea[id],select[id]').forEach(el=>{ if(el.id!=='sig' && el.id!=='typedSig') d[el.id]=el.value.trim(); });
+    d.signatureMethod = typedMode ? 'typed' : 'drawn';
+    d.acks = [...document.querySelectorAll('[data-ack]')].length;
+    d.signedAt = new Date().toISOString();
+    d.userAgent = navigator.userAgent;
+    return d;
+  }
+
+  async function sha256(str){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+
+  $('#submit').onclick = async () => {
+    $('#submit').disabled = true; $('#submit').textContent = 'Generating…';
+    try{
+      const data = collect();
+      const hash = await sha256(JSON.stringify(data));
+      const sigPng = canvas.toDataURL('image/png');
+
+      if(!window.PDFLib) throw new Error('PDF library did not load — check your connection and retry.');
+      const { PDFDocument, StandardFonts, rgb } = PDFLib;
+      const pdf = await PDFDocument.create();
+      const font = await pdf.embedFont(StandardFonts.Helvetica);
+      const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+      const page = pdf.addPage([612, 792]);
+      let y = 752;
+      const M = 46, W = 612 - M*2;
+      const wrap = (text, size, f) => {
+        const words = String(text||'—').split(/\s+/); const lines=[]; let line='';
+        for(const w of words){ const t=(line?line+' ':'')+w;
+          if(f.widthOfTextAtSize(t,size) > W){ lines.push(line); line=w; } else line=t; }
+        if(line) lines.push(line); return lines;
+      };
+      const write = (text, size=10, opts={}) => {
+        const f = opts.bold?bold:font; const color = opts.color||rgb(0.07,0.06,0.05);
+        for(const ln of wrap(text,size,f)){
+          if(y < 60){ /* single page; keep going down is acceptable */ }
+          page.drawText(ln,{x:M,y,size,font:f,color}); y -= size+4.5;
+        }
+      };
+      const rule = () => { page.drawLine({start:{x:M,y:y-3},end:{x:M+W,y:y-3},thickness:0.8,color:rgb(0.8,0.76,0.7)}); y-=16; };
+      const section = (t) => { y-=6; write(t.toUpperCase(),11,{bold:true,color:rgb(0.12,0.29,0.29)}); rule(); };
+
+      write('AGENT SIGNATURE — COMPLETION RECORD', 16, {bold:true});
+      write('RV / Motorhome Rental Vehicle Management Agreement + Addendum', 10.5);
+      y-=2; write('Owner: Ben Thomas Wieduwilt   ·   Agent: Precise Enterprise Rentals LLC', 10);
+      y-=2; write('Unit: 2019 Forest River Wildwood   ·   VIN 4X4TWDC24KC045762', 10);
+      write('Agreement effective date: November 6, 2026', 10);
+      rule();
+
+      section('Signer');
+      write(`Name: ${data.agentName}`);
+      write(`Title / authority: ${data.agentTitle}`);
+      write(`Entity: ${data.agentEntity}`);
+      write(`Email: ${data.agentEmail}`);
+      write(`Phone: ${data.agentPhone || '—'}`);
+      write(`Signing date: ${data.signDate || data.signedAt.slice(0,10)}`);
+
+      section('Trailer, storage & effective date');
+      write(`Unit: ${data.unit}`);
+      write(`VIN: ${data.vin}`);
+      write(`Storage address: ${data.storage}`);
+      write(`Storage contact / access: ${data.storageContact || '—'}`);
+      write(`Effective date: ${data.effDate}`);
+
+      section('Insurance confirmation');
+      write(`Carrier / policy: ${data.carrier}`);
+      write(`Liability limit: ${data.liability}`);
+      write(`Physical-damage limit / valuation: ${data.physical}`);
+      write(`Deductible(s): ${data.deductible}`);
+      write(`Who pays each deductible: ${data.deductWho}`);
+      write(`Denied / uninsured / uncollected damage: ${data.denied}`);
+      write(`Coverage effective dates: ${data.covDates || '—'}`);
+      write(`Owner named additional insured: ${data.addlInsured || '—'}`);
+
+      section('Terms incorporated (addendum controls)');
+      write('50/50 of gross nightly rental revenue actually collected, before platform/processing/referral/finder fees; those fees paid from Agent share unless Owner approves a specific charge in writing. Standard rate $175/night, two-night minimum.');
+      write('Agent pays all management-related storage costs and commercial insurance premiums throughout custody, including months without rentals; not charged to Owner, accrued as Owner debt, or deducted from Owner earnings.');
+      write('Owner prior written approval required for any Owner-paid repair exceeding $250 total; immediate safety emergencies excepted with prompt notice and receipts. Covered Basic Plan work is Agent expense; authorized work bills at $100/hour labor.');
+      write('Owner personal use with five calendar days written notice. Storage/management base remains in California; Agent gives written notice before any change of storage location. Winter relocation provision deleted.');
+      write('Month-to-month term; either party terminates on 30 calendar days written notice; trailer, keys and documented Owner equipment available for pickup in California by end of notice period; no $300 termination or nonrenewal fee.');
+      write('Before first rental or Agent transport, Agent provides coverage documents confirming this trailer, Owner insured status, storage/transport/setup/customer-use coverage, liability and physical-damage limits, and exclusions.');
+      write('References to Hightened Path RV mean the Agent. California governing law remains selected.');
+
+      section('Electronic signature');
+      write(`Method: ${data.signatureMethod === 'typed' ? 'typed name rendered as signature' : 'hand-drawn on signature pad'}`);
+      const sig = await pdf.embedPng(sigPng);
+      const sigW = 300, sigH = sigW * (sig.height / sig.width);
+      y -= 6;
+      page.drawImage(sig, { x:M, y: y - sigH, width: sigW, height: sigH });
+      y -= sigH + 8;
+      page.drawLine({start:{x:M,y},end:{x:M+sigW,y},thickness:0.8,color:rgb(0.3,0.27,0.24)});
+      y -= 14;
+      write(`${data.agentName}${data.agentTitle ? ', ' + data.agentTitle : ''} — for Precise Enterprise Rentals LLC`, 9.5);
+      write(`Signed ${new Date(data.signedAt).toLocaleString('en-US',{timeZone:'America/Chicago',timeZoneName:'short'})}`, 9);
+
+      section('Audit');
+      write(`Signed at (UTC): ${data.signedAt}`, 8.5);
+      write(`Content hash (SHA-256): ${hash}`, 8.5);
+      write(`Browser: ${data.userAgent}`, 7.5);
+
+      const bytes = await pdf.save();
+      const blob = new Blob([bytes], {type:'application/pdf'});
+      const url = URL.createObjectURL(blob);
+      const a = $('#dl'); a.href = url;
+      const link = document.createElement('a');
+      link.href = url; link.download = 'Precise-RV-Agent-Signed.pdf'; link.click();
+
+      const subject = encodeURIComponent('Signed — Precise RV Management Agreement (Agent copy)');
+      const body = encodeURIComponent(
+        `Signed agreement attached.\n\nSigner: ${data.agentName} (${data.agentTitle}) for ${data.agentEntity}\n` +
+        `Unit: ${data.unit} — VIN ${data.vin}\nSigned: ${new Date(data.signedAt).toLocaleString()}\n` +
+        `Content hash: ${hash}\n\n(Attach the downloaded PDF before sending.)`);
+      $('#mailto').href = `mailto:?subject=${subject}&body=${body}`;
+
+      $('#doneText').textContent = `Signed by ${data.agentName} on ${new Date(data.signedAt).toLocaleString()}.`;
+      $('#audit').textContent = `Content hash ${hash.slice(0,32)}…  ·  method: ${data.signatureMethod}`;
+      $('#done').style.display = 'block';
+      $('#done').scrollIntoView({behavior:'smooth', block:'center'});
+      $('#submit').textContent = 'Signed';
+      $('#statusTitle').textContent = 'Signed';
+      $('#statusSub').textContent = 'Your copy was generated and downloaded.';
+    } catch(err){
+      $('#submit').disabled = false; $('#submit').textContent = 'Sign & generate PDF';
+      $('#sigMsg').textContent = 'Could not generate the PDF: ' + err.message;
+      $('#sigMsg').className = 'msg err';
+    }
+  };
+
+  // defaults
+  const today = new Date().toISOString().slice(0,10);
+  $('#signDate').value = today;
+  refresh();
+})();
+</script>
+</body>
+</html>
